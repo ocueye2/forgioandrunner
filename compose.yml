@@ -1,0 +1,76 @@
+version: "3.8"
+
+networks:
+  forgejo-network:
+    driver: bridge
+
+volumes:
+  forgejo-data:
+  runner-data:
+
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:latest
+    container_name: forgejo
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # web UI
+      - "222:22"      # SSH git access
+    volumes:
+      - forgejo-data:/data
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - FORGEJO__security__INSTALL_LOCK=true
+      - FORGEJO__mailer__ENABLED=false
+    networks:
+      - forgejo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  docker-in-docker:
+    image: docker:dind
+    container_name: docker-dind
+    privileged: true
+    command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false"]
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker
+    networks:
+      - forgejo-network
+    healthcheck:
+      test: ["CMD", "docker", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  runner:
+    image: code.forgejo.org/forgejo/runner:latest
+    container_name: forgejo-runner
+    restart: unless-stopped
+    depends_on:
+      docker-in-docker:
+        condition: service_healthy
+      forgejo:
+        condition: service_healthy
+    environment:
+      - DOCKER_HOST=tcp://docker-in-docker:2375
+      - FORGEJO_RUNNER_LOGS_LEVEL=debug
+    volumes:
+      - runner-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - forgejo-network
+    working_dir: /data
+    command: >
+      sh -c "
+      if [ ! -f runner-config.yml ]; then
+        forgejo-runner generate-config > runner-config.yml
+      fi &&
+      forgejo-runner daemon --config runner-config.yml
+      "

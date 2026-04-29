@@ -1,0 +1,28 @@
+# Environment and Secrets
+.env
+.env.local
+.env.*.local
+
+# Docker volumes and data
+data/
+volumes/
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# Docker
+docker-compose.override.yml
