@@ -1,11 +1,11 @@
-FROM docker:latest
+FROM python:3.11-slim
 
-# Install Python and additional tools
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
+# Install Docker CLI and other tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    docker.io \
     curl \
-    bash
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
